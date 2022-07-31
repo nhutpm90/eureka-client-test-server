@@ -14,6 +14,12 @@ import com.microservices.eureka.client.ProjectConfig;
 import com.microservices.eureka.client.dto.ProjectConfigDto;
 import com.microservices.eureka.client.service.ConfigClientFeignClient;
 
+import io.github.resilience4j.bulkhead.annotation.Bulkhead;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
+import io.github.resilience4j.ratelimiter.annotation.RateLimiter;
+import lombok.extern.slf4j.Slf4j;
+
+@Slf4j
 @RestController
 public class LiveApi {
 
@@ -47,12 +53,49 @@ public class LiveApi {
 	private ConfigClientFeignClient configClientFeignClient;
 	
 	@GetMapping("/test-config-client/live-check")
-	public String testConfigClientLiveCheck() {
-		return configClientFeignClient.liveCheck();
+	@CircuitBreaker(
+			name = "configClientTestServerLiveCheck",
+			fallbackMethod = "configClientLiveCheckFallBack")
+	public String testConfigClientLiveCheck(@RequestParam(required = false) Integer sleep) {
+		log.info("testConfigClientLiveCheck:: " + sleep);
+		return configClientFeignClient.liveCheck(sleep);
+	}
+	
+	private String configClientLiveCheckFallBack(Integer sleep, Throwable t) {
+		log.info("configClientLiveCheckFallBack:: " + sleep + " - error:: " + t.getMessage());
+		return "something went wrong on configClientServer";
 	}
 	
 	@GetMapping("/test-config-client/configuration")
 	public ProjectConfigDto testConfigClientProjectConfig() {
 		return configClientFeignClient.getProjectConfig();
+	}
+	
+	int count = 0;
+	
+//	@GetMapping("/hello")
+//	@RateLimiter(name = "sayHello", fallbackMethod = "sayHelloFallback")
+//	public String sayHello(@RequestParam(required = false) Integer sleep) throws InterruptedException {
+//		if(sleep != null) {
+//			Thread.sleep(sleep*1000);
+//		}
+//		count++;
+//		return "Hello from Eureka Client Test Server:: " + count;
+//	}
+	
+	@GetMapping("/hello")
+	@Bulkhead(name = "sayHello", fallbackMethod = "sayHelloFallback")
+	public String sayHello(@RequestParam(required = false) String name,
+			@RequestParam(required = false) Integer sleep) throws InterruptedException {
+		System.out.println("sayHello:: " + name + " - sleep:: " + sleep);
+		if(sleep != null) {
+			Thread.sleep(sleep*1000);
+		}
+		count++;
+		return "Hello from Eureka Client Test Server:: " + count;
+	}
+
+	public String sayHelloFallback(Throwable t) {
+		return "something went wrong";
 	}
 }
