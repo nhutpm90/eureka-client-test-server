@@ -7,6 +7,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -56,9 +57,10 @@ public class LiveApi {
 	@CircuitBreaker(
 			name = "configClientTestServerLiveCheck",
 			fallbackMethod = "configClientLiveCheckFallBack")
-	public String testConfigClientLiveCheck(@RequestParam(required = false) Integer sleep) {
+	public String testConfigClientLiveCheck(@RequestParam(required = false) Integer sleep,
+			@RequestHeader("my-app-correlation-id") String correlationId) {
 		log.info("testConfigClientLiveCheck:: " + sleep);
-		return configClientFeignClient.liveCheck(sleep);
+		return configClientFeignClient.liveCheck(sleep, correlationId);
 	}
 	
 	private String configClientLiveCheckFallBack(Integer sleep, Throwable t) {
